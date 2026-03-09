@@ -1,0 +1,30 @@
+name: Test Wazuh Rules
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  validate-rules:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install XML validator
+        run: sudo apt-get install -y libxml2-utils
+
+      - name: Validate XML rules
+        run: |
+          for file in rules/*.xml; do
+            echo "Validating $file"
+            xmllint --noout $file
+          done
+
+      - name: Detect changed files
+        run: |
+          echo "Changed files:"
+          git diff --name-only ${{ github.event.before }} ${{ github.sha }} || true
