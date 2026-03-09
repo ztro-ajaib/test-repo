@@ -29,4 +29,6 @@ jobs:
       - name: Detect changed files
         run: |
           echo "Changed files:"
-          git diff --name-only ${{ github.event.before }} ${{ github.sha }} || true
+          FILES=$(git diff --name-only HEAD^ HEAD | grep -E 'rules/.*\.xml|decoders/.*\.xml' || true)
+          echo "Changed files: $FILES"
+          echo "::set-output name=files::$FILES"
