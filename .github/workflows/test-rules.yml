@@ -27,16 +27,27 @@ jobs:
           done
 
       - name: Detect changed files
+        id: detect_files
         run: |
-          echo "Changed files:"
-          git diff --name-only HEAD^ HEAD | grep -E 'rules/.*\.xml|decoders/.*\.xml' || true
+          # Ambil daftar file, ganti baris baru dengan \n agar JSON tidak rusak
+          FILES=$(git diff --name-only HEAD^ HEAD | grep -E 'rules/.*\.xml|decoders/.*\.xml' || true)
           
+          # Jika kosong, beri keterangan
+          if [ -z "$FILES" ]; then
+            FILES="No XML/Decoders changed"
+          fi
+
+          # Format agar ramah di Slack (tambah bullet point dan ganti newline)
+          FORMATTED_FILES=$(echo "$FILES" | sed 's/^/- /' | tr '\n' ',' | sed 's/,$//' | sed 's/,/\\n/g')
+          
+          # Simpan ke environment GitHub agar bisa dibaca step selanjutnya
+          echo "CHANGED_FILES=$FORMATTED_FILES" >> $GITHUB_ENV
+
       - name: Notify Slack
-        if: always() # Penting: Tetap lapor meski XML error
+        if: always()
         env:
           SLACK_WEBHOOK: ${{ secrets.TEST_INT }}
         run: |
-          # Menentukan emoji berdasarkan status job
           if [ "${{ job.status }}" == "success" ]; then
             EMOJI="✅"
           else
@@ -45,5 +56,5 @@ jobs:
 
           curl -X POST -H 'Content-type: application/json' \
           --data "{
-            \"text\": \"$EMOJI *WAZUH RULES UPDATE*\n*Status:* ${{ job.status }}\n*Repo:* ${{ github.repository }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* ${{ github.sha }}\"
+            \"text\": \"$EMOJI *WAZUH RULES UPDATE*\n*Status:* ${{ job.status }}\n*Repo:* ${{ github.repository }}\n*Commit:* ${{ github.sha }}\n\n*Changed Files:*\n${{ env.CHANGED_FILES }}\"
           }" $SLACK_WEBHOOK
