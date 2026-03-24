@@ -30,3 +30,9 @@ jobs:
         run: |
           echo "Changed files:"
           git diff --name-only HEAD^ HEAD | grep -E 'rules/.*\.xml|decoders/.*\.xml' || true
+      - name: Send Slack Notification
+        if: always() # Tetap kirim pesan meski step sebelumnya sukses atau gagal
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data '{"text":"🚀 *CI/CD Update*\n*Repo:* ${{ github.repository }}\n*Status:* ${{ job.status }}\n*Commit:* ${{ github.sha }}"}' \
+          https://hooks.slack.com/services/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
