@@ -34,7 +34,7 @@ jobs:
       - name: Notify Slack
         if: always() # Penting: Tetap lapor meski XML error
         env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_WEBHOOK: ${{ secrets.TEST_INT }}
         run: |
           # Menentukan emoji berdasarkan status job
           if [ "${{ job.status }}" == "success" ]; then
@@ -46,4 +46,4 @@ jobs:
           curl -X POST -H 'Content-type: application/json' \
           --data "{
             \"text\": \"$EMOJI *WAZUH RULES UPDATE*\n*Status:* ${{ job.status }}\n*Repo:* ${{ github.repository }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* ${{ github.sha }}\"
-          }" $TEST_INT
+          }" $SLACK_WEBHOOK
