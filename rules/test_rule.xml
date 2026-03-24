@@ -7,8 +7,4 @@
     <match>test_event 2</match>
     <description>Test 1 rule from GitHub pipeline</description>
   </rule>
-  <rule id="100003" level="5">
-    <match>test_event 3</match>
-    <description>Test 2 rule from GitHub pipeline</description>
-  </rule>
 </group>
