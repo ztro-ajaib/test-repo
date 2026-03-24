@@ -30,6 +30,7 @@ jobs:
         run: |
           echo "Changed files:"
           git diff --name-only HEAD^ HEAD | grep -E 'rules/.*\.xml|decoders/.*\.xml' || true
+          
       - name: Send Slack Notification
         if: always() # Tetap kirim pesan meski step sebelumnya sukses atau gagal
         run: |
