@@ -46,4 +46,4 @@ jobs:
           curl -X POST -H 'Content-type: application/json' \
           --data "{
             \"text\": \"$EMOJI *WAZUH RULES UPDATE*\n*Status:* ${{ job.status }}\n*Repo:* ${{ github.repository }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* ${{ github.sha }}\"
-          }" $SLACK_WEBHOOK1
+          }" $SLACK_WEBHOOK
