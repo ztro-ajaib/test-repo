@@ -31,9 +31,19 @@ jobs:
           echo "Changed files:"
           git diff --name-only HEAD^ HEAD | grep -E 'rules/.*\.xml|decoders/.*\.xml' || true
           
-      - name: Send Slack Notification
-        if: always() # Tetap kirim pesan meski step sebelumnya sukses atau gagal
+      - name: Notify Slack
+        if: always() # Penting: Tetap lapor meski XML error
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
         run: |
+          # Menentukan emoji berdasarkan status job
+          if [ "${{ job.status }}" == "success" ]; then
+            EMOJI="✅"
+          else
+            EMOJI="❌"
+          fi
+
           curl -X POST -H 'Content-type: application/json' \
-          --data '{"text":"🚀 *CI/CD Update*\n*Repo:* ${{ github.repository }}\n*Status:* ${{ job.status }}\n*Commit:* ${{ github.sha }}"}' \
-          https://hooks.slack.com/services/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
+          --data "{
+            \"text\": \"$EMOJI *WAZUH RULES UPDATE*\n*Status:* ${{ job.status }}\n*Repo:* ${{ github.repository }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* ${{ github.sha }}\"
+          }" $SLACK_WEBHOOK
