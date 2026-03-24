@@ -5,30 +5,28 @@ on:
     branches:
       - main
   pull_request:
-    branches:
-      - main
 
 jobs:
   validate-rules:
     runs-on: self-hosted
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
       - name: Install XML validator
-        run: sudo apt-get update && sudo apt-get install -y libxml2-utils
+        run: sudo apt-get install -y libxml2-utils
 
       - name: Validate XML rules
         run: |
-          if [ -d "rules" ]; then
-            for file in rules/*.xml; do
-              if [ -f "$file" ]; then
-                echo "Validating $file"
-                xmllint --noout "$file"
-              fi
-            done
-          else
-            echo "Folder rules tidak ditemukan!"
-          fi
+          for file in rules/*.xml; do
+            echo "Validating $file"
+            xmllint --noout $file
+          done
+
+      - name: Detect changed files
+        run: |
+          echo "Changed files:"
+          git diff --name-only HEAD^ HEAD | grep -E 'rules/.*\.xml|decoders/.*\.xml' || true
