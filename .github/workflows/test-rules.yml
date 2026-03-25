@@ -1,47 +1,73 @@
-name: Test Wazuh Rules
+name: Test and Sync Wazuh Rules
 
 on:
   push:
     branches:
       - main
   pull_request:
+    branches:
+      - main
 
 jobs:
-  validate-rules:
+  validate-and-sync:
     runs-on: self-hosted
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Install XML validator
-        run: sudo apt-get install -y libxml2-utils
+        run: sudo apt-get update && sudo apt-get install -y libxml2-utils
 
       - name: Validate XML rules
         run: |
-          for file in rules/*.xml; do
-            echo "Validating $file"
-            xmllint --noout $file
-          done
+          if [ -d "rules" ]; then
+            for file in rules/*.xml; do
+              if [ -f "$file" ]; then
+                echo "Validating $file"
+                xmllint --noout "$file"
+              fi
+            done
+          else
+            echo "Folder rules tidak ditemukan!"
+          fi
 
       - name: Detect changed files
         id: detect_files
         run: |
-          # Ambil daftar file, ganti baris baru dengan \n agar JSON tidak rusak
+          # Ambil daftar file yang berubah
           FILES=$(git diff --name-only HEAD^ HEAD | grep -E 'rules/.*\.xml|decoders/.*\.xml' || true)
           
-          # Jika kosong, beri keterangan
           if [ -z "$FILES" ]; then
-            FILES="No XML/Decoders changed"
+            echo "CHANGED_FILES=No XML/Decoders changed" >> $GITHUB_ENV
+            echo "HAS_CHANGES=false" >> $GITHUB_ENV
+          else
+            # Simpan daftar asli untuk proses upload
+            echo "$FILES" > changed_files_list.txt
+            
+            # Format untuk tampilan Slack
+            FORMATTED_FILES=$(echo "$FILES" | sed 's/^/- /' | tr '\n' ',' | sed 's/,$//' | sed 's/,/\\n/g')
+            echo "CHANGED_FILES=$FORMATTED_FILES" >> $GITHUB_ENV
+            echo "HAS_CHANGES=true" >> $GITHUB_ENV
           fi
 
-          # Format agar ramah di Slack (tambah bullet point dan ganti newline)
-          FORMATTED_FILES=$(echo "$FILES" | sed 's/^/- /' | tr '\n' ',' | sed 's/,$//' | sed 's/,/\\n/g')
+      - name: Sync to Wazuh Cloud
+        if: success() && env.HAS_CHANGES == 'true'
+        run: |
+          # 1. Dapatkan Token
+          TOKEN=$(curl -u "${{ secrets.WAZUH_USER }}:${{ secrets.WAZUH_PASS }}" -k -X POST "https://tnr0wn663gdu.cloud.wazuh.com/api/wazuh/security/user/authenticate?raw=true")
           
-          # Simpan ke environment GitHub agar bisa dibaca step selanjutnya
-          echo "CHANGED_FILES=$FORMATTED_FILES" >> $GITHUB_ENV
+          # 2. Upload setiap file yang berubah
+          while IFS= read -r file; do
+            filename=$(basename "$file")
+            echo "Uploading $filename to Wazuh Cloud..."
+            
+            curl -k -X PUT "https://tnr0wn663gdu.cloud.wazuh.com/api/wazuh/rules/files/$filename?overwrite=true" \
+                 -H "Authorization: Bearer $TOKEN" \
+                 -H "Content-Type: application/octet-stream" \
+                 --data-binary "@$file"
+          done < changed_files_list.txt
 
       - name: Notify Slack
         if: always()
