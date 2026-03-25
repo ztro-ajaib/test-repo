@@ -69,6 +69,11 @@ jobs:
                  --data-binary "@$file"
           done < changed_files_list.txt
 
+          # 3. RESTART WAZUH MANAGER (Agar rule aktif)
+          echo "Restarting Wazuh Manager..."
+          curl -k -X PUT "https://tnr0wn663gdu.cloud.wazuh.com/api/wazuh/manager/restart" \
+               -H "Authorization: Bearer $TOKEN"
+
       - name: Notify Slack
         if: always()
         env:
