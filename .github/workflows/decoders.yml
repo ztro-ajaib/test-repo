@@ -1,0 +1,73 @@
+name: Test and Sync Wazuh Decoders
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'decoders/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'decoders/**'
+
+jobs:
+  validate-and-sync:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed files
+        id: detect_files
+        run: |
+          FILES=$(git diff --name-only HEAD^ HEAD | grep -E '^decoders/.*\.xml' || true)
+          
+          if [ -z "$FILES" ]; then
+            echo "CHANGED_FILES=No decoders changed" >> $GITHUB_ENV
+            echo "HAS_CHANGES=false" >> $GITHUB_ENV
+          else
+            echo "$FILES" > changed_files_list.txt
+            
+            FORMATTED_FILES=$(echo "$FILES" | sed 's/^/- /' | tr '\n' ',' | sed 's/,$//' | sed 's/,/\\n/g')
+            echo "CHANGED_FILES=$FORMATTED_FILES" >> $GITHUB_ENV
+            echo "HAS_CHANGES=true" >> $GITHUB_ENV
+          fi
+
+      - name: Sync to Wazuh Cloud
+        if: success() && env.HAS_CHANGES == 'true'
+        run: |
+          TOKEN=$(curl -u "${{ secrets.WAZUH_USER }}:${{ secrets.WAZUH_PASS }}" -k -X POST "https://tnr0wn663gdu.cloud.wazuh.com/api/wazuh/security/user/authenticate?raw=true")
+          
+          while IFS= read -r file; do
+            filename=$(basename "$file")
+            echo "Uploading $filename to Wazuh Cloud (decoders)..."
+            
+            curl -k -X PUT "https://tnr0wn663gdu.cloud.wazuh.com/api/wazuh/decoders/files/$filename?overwrite=true" \
+                 -H "Authorization: Bearer $TOKEN" \
+                 -H "Content-Type: application/octet-stream" \
+                 --data-binary "@$file"
+          done < changed_files_list.txt
+
+          echo "Restarting Wazuh Manager..."
+          curl -k -X PUT "https://tnr0wn663gdu.cloud.wazuh.com/api/wazuh/manager/restart" \
+               -H "Authorization: Bearer $TOKEN"
+
+      - name: Notify Slack
+        if: always()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.TEST_INT }}
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            EMOJI="✅"
+          else
+            EMOJI="❌"
+          fi
+
+          curl -X POST -H 'Content-type: application/json' \
+          --data "{
+            \"text\": \"$EMOJI *WAZUH DECODERS UPDATE*\n*Status:* ${{ job.status }}\n*Repo:* ${{ github.repository }}\n*Commit:* ${{ github.sha }}\n\n*Changed Files:*\n${{ env.CHANGED_FILES }}\"
+          }" $SLACK_WEBHOOK

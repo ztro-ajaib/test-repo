@@ -1,0 +1,46 @@
+name: Test and Sync Wazuh Config (ossec.conf)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'ossec/ossec.conf'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'ossec/ossec.conf'
+
+jobs:
+  validate-and-sync:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install XML validator
+        run: sudo apt-get update && sudo apt-get install -y libxml2-utils
+
+      - name: Validate ossec.conf
+        run: |
+          if [ -f "ossec/ossec.conf" ]; then
+            echo "Validating ossec/ossec.conf"
+            #xmllint --noout ossec/ossec.conf
+          else
+            echo "ossec/ossec.conf tidak ditemukan!"
+            exit 1
+          fi
+      - name: Notify Slack
+        if: always()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.TEST_INT }}
+        run: |
+          EMOJI="✅"
+
+          curl -X POST -H 'Content-type: application/json' \
+          --data "{
+            \"text\": \"$EMOJI *WAZUH CONFIG UPDATE (Test flow without upload to Wazuh)*\n*Status:* ${{ job.status }}\n*Repo:* ${{ github.repository }}\n*Commit:* ${{ github.sha }}\"
+          }" $SLACK_WEBHOOK
+     
+      

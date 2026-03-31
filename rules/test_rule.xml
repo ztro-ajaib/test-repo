@@ -1,0 +1,10 @@
+<group name="test_rules">
+  <rule id="100001" level="3">
+    <match>test_event</match>
+    <description>Test 0 rule from GitHub pipeline</description>
+  </rule>
+  <rule id="100002" level="3">
+    <match>test_event1</match>
+    <description>Test 1 rule from GitHub pipeline</description>
+  </rule>
+</group>
