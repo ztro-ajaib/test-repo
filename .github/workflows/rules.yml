@@ -56,20 +56,20 @@ jobs:
       - name: Sync to Wazuh Cloud
         if: success() && env.HAS_CHANGES == 'true'
         run: |
-          TOKEN=$(curl -u "${{ secrets.WAZUH_USER }}:${{ secrets.WAZUH_PASS }}" -k -X POST "https://tnr0wn663gdu.cloud.wazuh.com/api/wazuh/security/user/authenticate?raw=true")
+          TOKEN=$(curl -u "${{ secrets.WAZUH_USER }}:${{ secrets.WAZUH_PASS }}" -k -X POST "${{ secrets.WAZUH_URL }}/api/wazuh/security/user/authenticate?raw=true")
           
           while IFS= read -r file; do
             filename=$(basename "$file")
             echo "Uploading $filename to Wazuh Cloud..."
             
-            curl -k -X PUT "https://tnr0wn663gdu.cloud.wazuh.com/api/wazuh/rules/files/$filename?overwrite=true" \
+            curl -k -X PUT "${{ secrets.WAZUH_URL }}/api/wazuh/rules/files/$filename?overwrite=true" \
                  -H "Authorization: Bearer $TOKEN" \
                  -H "Content-Type: application/octet-stream" \
                  --data-binary "@$file"
           done < changed_files_list.txt
 
           echo "Restarting Wazuh Manager..."
-          curl -k -X PUT "https://tnr0wn663gdu.cloud.wazuh.com/api/wazuh/manager/restart" \
+          curl -k -X PUT "${{ secrets.WAZUH_URL }}/api/wazuh/manager/restart" \
                -H "Authorization: Bearer $TOKEN"
 
       - name: Notify Slack
