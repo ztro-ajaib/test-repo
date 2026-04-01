@@ -2,7 +2,6 @@
     <program_name>wazuh-ses-connector</program_name>
     <prematch>\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d.\d+Z stdout F {\.*}</prematch>    
 </decoder>
-
 <decoder name="ses-json-log">
     <parent>ses-json-stdout</parent>
     <prematch>stdout F </prematch>
